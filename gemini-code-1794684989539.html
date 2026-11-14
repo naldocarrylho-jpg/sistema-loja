@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Estoque e Vendas - LojaPro</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js para gráficos ao vivo -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- FontAwesome para ícones -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Html5-Qrcode para Leitura de Código de Barras -->
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+</head>
+<body class="bg-slate-100 font-sans text-slate-800">
+
+    <div class="flex h-screen overflow-hidden">
+        <!-- Sidebar -->
+        <aside class="w-64 bg-slate-900 text-white flex flex-col justify-between hidden md:flex">
+            <div>
+                <div class="p-5 text-2xl font-bold tracking-wider flex items-center gap-3 text-indigo-400">
+                    <i class="fa-solid fa-store"></i> LojaPro
+                </div>
+                <nav class="mt-6 flex flex-col gap-1 px-3">
+                    <button onclick="switchTab('dashboard')" class="tab-btn flex items-center gap-3 px-4 py-3 rounded-lg text-left transition bg-indigo-600 text-white font-medium" data-target="dashboard">
+                        <i class="fa-solid fa-chart-pie w-5"></i> Dashboard & Relatórios
+                    </button>
+                    <button onclick="switchTab('estoque')" class="tab-btn flex items-center gap-3 px-4 py-3 rounded-lg text-left transition hover:bg-slate-800 text-slate-300" data-target="estoque">
+                        <i class="fa-solid fa-boxes-stacked w-5"></i> Estoque & Fotos
+                    </button>
+                    <button onclick="switchTab('vendas')" class="tab-btn flex items-center gap-3 px-4 py-3 rounded-lg text-left transition hover:bg-slate-800 text-slate-300" data-target="vendas">
+                        <i class="fa-solid fa-cash-register w-5"></i> Caixa / Vendas
+                    </button>
+                    <button onclick="switchTab('clientes')" class="tab-btn flex items-center gap-3 px-4 py-3 rounded-lg text-left transition hover:bg-slate-800 text-slate-300" data-target="clientes">
+                        <i class="fa-solid fa-users w-5"></i> Clientes & Crediário
+                    </button>
+                </nav>
+            </div>
+            <div class="p-4 text-xs text-slate-500 border-t border-slate-800">
+                Sistema v1.1 - Leitor de Barras Ativo
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 flex flex-col overflow-y-auto">
+            <!-- Topbar mobile/desktop -->
+            <header class="bg-white shadow-sm px-6 py-4 flex justify-between items-center md:hidden">
+                <span class="font-bold text-lg text-indigo-600">LojaPro</span>
+                <div class="flex gap-2">
+                    <button onclick="switchTab('dashboard')" class="p-2"><i class="fa-solid fa-chart-pie"></i></button>
+                    <button onclick="switchTab('estoque')" class="p-2"><i class="fa-solid fa-boxes-stacked"></i></button>
+                    <button onclick="switchTab('vendas')" class="p-2"><i class="fa-solid fa-cash-register"></i></button>
+                    <button onclick="switchTab('clientes')" class="p-2"><i class="fa-solid fa-users"></i></button>
+                </div>
+            </header>
+
+            <div class="p-6 md:p-10 max-w-7xl mx-auto w-full">
+
+                <!-- ABA 1: DASHBOARD -->
+                <section id="dashboard" class="tab-content space-y-6">
+                    <div class="flex justify-between items-center">
+                        <h1 class="text-2xl font-bold text-slate-900">Dashboard & Relatórios</h1>
+                        <button onclick="updateDashboard()" class="bg-indigo-50 text-indigo-600 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-100 transition"><i class="fa-solid fa-rotate"></i> Atualizar Dados</button>
+                    </div>
+
+                    <!-- Cards Resumo -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                            <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Faturamento Total</p>
+                            <h3 id="dash-faturamento" class="text-2xl font-bold text-slate-800 mt-2">R$ 0,00</h3>
+                        </div>
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                            <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Produtos em Estoque</p>
+                            <h3 id="dash-estoque-qtd" class="text-2xl font-bold text-slate-800 mt-2">0</h3>
+                        </div>
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                            <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total a Receber (Crediário)</p>
+                            <h3 id="dash-crediario" class="text-2xl font-bold text-amber-600 mt-2">R$ 0,00</h3>
+                        </div>
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                            <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Vendas Realizadas</p>
+                            <h3 id="dash-vendas-qtd" class="text-2xl font-bold text-slate-800 mt-2">0</h3>
+                        </div>
+                    </div>
+
+                    <!-- Gráficos -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                            <h3 class="font-bold text-slate-800 mb-4">Fluxo de Vendas (Últimas)</h3>
+                            <div class="h-48"><canvas id="chartVendas"></canvas></div>
+                        </div>
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                            <h3 class="font-bold text-slate-800 mb-4">Produtos Mais Vendidos</h3>
+                            <div class="h-48"><canvas id="chartProdutos"></canvas></div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ABA 2: ESTOQUE E FOTOS -->
+                <section id="estoque" class="tab-content hidden space-y-6">
+                    <div class="flex justify-between items-center">
+                        <h1 class="text-2xl font-bold text-slate-900">Controle de Estoque & Recebimento</h1>
+                        <button onclick="openModalProduto()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition flex items-center gap-2">
+                            <i class="fa-solid fa-plus"></i> Receber Novo Produto
+                        </button>
+                    </div>
+
+                    <!-- Tabela de Estoque -->
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase">
+                                        <th class="p-4">Foto</th>
+                                        <th class="p-4">Cód. Barras</th>
+                                        <th class="p-4">Produto</th>
+                                        <th class="p-4">Categoria</th>
+                                        <th class="p-4">Qtd</th>
+                                        <th class="p-4">Preço Venda</th>
+                                        <th class="p-4 text-right">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tabela-estoque-body" class="divide-y divide-slate-100 text-sm">
+                                    <!-- Inserido via JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ABA 3: VENDAS / CAIXA -->
+                <section id="vendas" class="tab-content hidden space-y-6">
+                    <div class="flex justify-between items-center">
+                        <h1 class="text-2xl font-bold text-slate-900">Frente de Caixa (PDV)</h1>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <!-- Seleção de Produtos -->
+                        <div class="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-4">
+                            <div class="flex justify-between items-center">
+                                <h3 class="font-bold text-slate-800">Adicionar à Venda</h3>
+                                <button onclick="abrirLeitorBarras('pdv')" class="bg-slate-800 text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-slate-700 transition flex items-center gap-2">
+                                    <i class="fa-solid fa-barcode"></i> Bipagem por Câmera
+                                </button>
+                            </div>
+
+                            <!-- Input rápido para leitor USB ou digitação do código -->
+                            <div class="flex gap-2">
+                                <div class="relative flex-1">
+                                    <i class="fa-solid fa-barcode absolute left-3 top-3 text-slate-400"></i>
+                                    <input type="text" id="pdv-codigo-barras" onkeyup="buscarPorCodigoEnter(event)" placeholder="Bipe ou digite o código de barras e aperte Enter..." class="w-full border border-slate-300 rounded-lg pl-9 pr-3 py-2 text-sm bg-slate-50 focus:bg-white">
+                                </div>
+                            </div>
+
+                            <div class="flex gap-3">
+                                <select id="venda-produto" class="flex-1 border border-slate-300 rounded-lg p-2.5 text-sm">
+                                    <option value="">Ou selecione manualmente na lista...</option>
+                                </select>
+                                <input type="number" id="venda-qtd" min="1" value="1" class="w-20 border border-slate-300 rounded-lg p-2.5 text-sm">
+                                <button onclick="adicionarItemCarrinho()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg font-semibold text-sm hover:bg-indigo-700">Adicionar</button>
+                            </div>
+
+                            <div class="mt-4 overflow-x-auto">
+                                <table class="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr class="border-b border-slate-200 text-xs font-semibold text-slate-400 uppercase">
+                                            <th class="py-2">Item</th>
+                                            <th class="py-2">Qtd</th>
+                                            <th class="py-2">Subtotal</th>
+                                            <th class="py-2 text-right">Remover</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="carrinho-body" class="divide-y divide-slate-100 text-sm">
+                                        <!-- Carrinho vazio -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Finalizar Venda -->
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-between space-y-4">
+                            <div>
+                                <h3 class="font-bold text-slate-800 mb-4">Resumo do Pagamento</h3>
+                                <div class="flex justify-between text-lg font-bold text-slate-900 border-b border-slate-100 pb-3 mb-4">
+                                    <span>Total:</span>
+                                    <span id="carrinho-total">R$ 0,00</span>
+                                </div>
+
+                                <div class="space-y-3">
+                                    <label class="block text-xs font-semibold text-slate-500 uppercase">Forma de Pagamento</label>
+                                    <select id="forma-pagamento" onchange="mudarFormaPagamento()" class="w-full border border-slate-300 rounded-lg p-2.5 text-sm">
+                                        <option value="dinheiro">Dinheiro / Pix / Cartão (À vista)</option>
+                                        <option value="crediario">Crédito da Loja (Parcelado)</option>
+                                    </select>
+
+                                    <div id="bloco-cliente" class="hidden space-y-2">
+                                        <label class="block text-xs font-semibold text-slate-500 uppercase">Cliente</label>
+                                        <select id="venda-cliente" class="w-full border border-slate-300 rounded-lg p-2.5 text-sm">
+                                            <!-- Clientes -->
+                                        </select>
+                                        <label class="block text-xs font-semibold text-slate-500 uppercase mt-2">Número de Parcelas</label>
+                                        <select id="venda-parcelas" class="w-full border border-slate-300 rounded-lg p-2.5 text-sm">
+                                            <option value="1">1x (À vista no crediário)</option>
+                                            <option value="2">2x Sem Juros</option>
+                                            <option value="3">3x Sem Juros</option>
+                                            <option value="6">6x Sem Juros</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button onclick="finalizarVenda()" class="w-full bg-emerald-600 text-white py-3 rounded-lg font-bold hover:bg-emerald-700 transition">Finalizar Venda</button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ABA 4: CLIENTES & CREDIÁRIO -->
+                <section id="clientes" class="tab-content hidden space-y-6">
+                    <div class="flex justify-between items-center">
+                        <h1 class="text-2xl font-bold text-slate-900">Gestão de Clientes & Crediário da Loja</h1>
+                        <button onclick="openModalCliente()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition flex items-center gap-2">
+                            <i class="fa-solid fa-user-plus"></i> Novo Cliente
+                        </button>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase">
+                                        <th class="p-4">Cliente</th>
+                                        <th class="p-4">Telefone</th>
+                                        <th class="p-4">Débito Atual (Crediário)</th>
+                                        <th class="p-4 text-right">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tabela-clientes-body" class="divide-y divide-slate-100 text-sm">
+                                    <!-- Inserido via JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- MODAL: CADASTRAR/RECEBER PRODUTO -->
+    <div id="modal-produto" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center p-4 z-40">
+        <div class="bg-white rounded-xl max-w-md w-full p-6 space-y-4 shadow-xl max-h-[95vh] overflow-y-auto">
+            <h3 class="text-lg font-bold text-slate-900">Receber Produto no Estoque</h3>
+            <div class="space-y-3">
+                <!-- Campo Código de Barras + Botão Scanner -->
+                <div class="flex gap-2">
+                    <input type="text" id="prod-codigo" placeholder="Código de Barras (Opcional)" class="flex-1 border border-slate-300 rounded-lg p-2.5 text-sm">
+                    <button type="button" onclick="abrirLeitorBarras('cadastro')" class="bg-slate-800 text-white px-3 rounded-lg text-xs font-semibold hover:bg-slate-700 flex items-center gap-1.5" title="Ler código com a câmera">
+                        <i class="fa-solid fa-barcode text-base"></i> Ler
+                    </button>
+                </div>
+
+                <input type="text" id="prod-nome" placeholder="Nome do Produto" class="w-full border border-slate-300 rounded-lg p-2.5 text-sm">
+                <input type="text" id="prod-categoria" placeholder="Categoria" class="w-full border border-slate-300 rounded-lg p-2.5 text-sm">
+                <div class="grid grid-cols-2 gap-3">
+                    <input type="number" id="prod-qtd" placeholder="Quantidade" class="w-full border border-slate-300 rounded-lg p-2.5 text-sm">
+                    <input type="number" step="0.01" id="prod-preco" placeholder="Preço de Venda (R$)" class="w-full border border-slate-300 rounded-lg p-2.5 text-sm">
+                </div>
+                
+                <!-- Foto do Produto -->
+                <div class="border border-dashed border-slate-300 rounded-lg p-4 text-center space-y-2">
+                    <p class="text-xs font-semibold text-slate-500 uppercase">Foto do Produto (Câmera ou Arquivo)</p>
+                    <div id="camera-container" class="relative bg-slate-900 rounded-lg overflow-hidden h-40 hidden flex items-center justify-center">
+                        <video id="video" autoplay playsinline class="w-full h-full object-cover"></video>
+                        <button type="button" onclick="tirarFoto()" class="absolute bottom-2 bg-white text-slate-900 px-3 py-1 rounded-full text-xs font-bold shadow">Capturar</button>
+                    </div>
+                    <canvas id="canvas" class="hidden"></canvas>
+                    <div id="preview-container" class="flex flex-col items-center justify-center">
+                        <img id="img-preview" class="h-28 rounded object-cover mb-2 hidden" alt="Preview">
+                        <div class="flex gap-2 flex-wrap justify-center">
+                            <button type="button" onclick="iniciarCamera()" class="bg-slate-200 text-slate-800 px-3 py-1.5 rounded text-xs font-semibold hover:bg-slate-300"><i class="fa-solid fa-camera"></i> Tirar Foto</button>
+                            <input type="file" id="prod-file" accept="image/*" onchange="carregarArquivo(event)" class="text-xs text-slate-500 file:mr-2 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-600 hover:file:bg-indigo-100">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="flex justify-end gap-3 pt-2">
+                <button onclick="closeModalProduto()" class="px-4 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100">Cancelar</button>
+                <button onclick="salvarProduto()" class="px-4 py-2 rounded-lg text-sm font-semibold bg-indigo-600 text-white hover:bg-indigo-700">Salvar Produto</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: LEITOR DE CÓDIGO DE BARRAS -->
+    <div id="modal-scanner" class="fixed inset-0 bg-black/75 hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center">
+                <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                    <i class="fa-solid fa-barcode text-indigo-600"></i> Escanear Código de Barras
+                </h3>
+                <button onclick="fecharLeitorBarras()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            
+            <p class="text-xs text-slate-500">Aponte a câmera para o código de barras do produto. A leitura ocorrerá automaticamente.</p>
+            
+            <!-- Área de Renderização da Câmera do Scanner -->
+            <div id="reader" class="w-full rounded-lg overflow-hidden border border-slate-200 bg-slate-900"></div>
+
+            <div class="flex justify-end pt-2">
+                <button onclick="fecharLeitorBarras()" class="w-full bg-slate-200 text-slate-800 py-2 rounded-lg text-sm font-semibold hover:bg-slate-300">Cancelar Leitura</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: CADASTRAR CLIENTE -->
+    <div id="modal-cliente" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-xl max-w-md w-full p-6 space-y-4 shadow-xl">
+            <h3 class="text-lg font-bold text-slate-900">Novo Cliente</h3>
+            <div class="space-y-3">
+                <input type="text" id="cli-nome" placeholder="Nome Completo" class="w-full border border-slate-300 rounded-lg p-2.5 text-sm">
+                <input type="text" id="cli-telefone" placeholder="Telefone / WhatsApp" class="w-full border border-slate-300 rounded-lg p-2.5 text-sm">
+            </div>
+            <div class="flex justify-end gap-3 pt-2">
+                <button onclick="closeModalCliente()" class="px-4 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100">Cancelar</button>
+                <button onclick="salvarCliente()" class="px-4 py-2 rounded-lg text-sm font-semibold bg-indigo-600 text-white hover:bg-indigo-700">Salvar Cliente</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPT DO SISTEMA -->
+    <script>
+        // --- ESTADO DA APLICAÇÃO (LOCALSTORAGE) ---
+        let produtos = JSON.parse(localStorage.getItem('loja_produtos')) || [];
+        let clientes = JSON.parse(localStorage.getItem('loja_clientes')) || [];
+        let vendas = JSON.parse(localStorage.getItem('loja_vendas')) || [];
+        let carrinho = [];
+        let fotoProdutoBase64 = "";
+
+        // Variáveis globais para gráficos e scanner
+        let chartVendasInstance = null;
+        let chartProdutosInstance = null;
+        let html5QrCode = null;
+        let modoScannerAtual = null; // 'cadastro' ou 'pdv'
+
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', () => {
+            atualizarTabelaEstoque();
+            atualizarTabelaClientes();
+            atualizarSelectsVendas();
+            updateDashboard();
+        });
+
+        // --- LEITOR DE CÓDIGO DE BARRAS (CÂMERA) ---
+        function abrirLeitorBarras(modo) {
+            modoScannerAtual = modo;
+            pararCamera(); // Garante que a webcam de foto não esteja ocupando a câmera
+            document.getElementById('modal-scanner').classList.remove('hidden');
+
+            html5QrCode = new Html5Qrcode("reader");
+            const config = { 
+                fps: 10, 
+                qrbox: { width: 250, height: 120 },
+                formatsToSupport: [
+                    Html5QrcodeSupportedFormats.EAN_13,
+                    Html5QrcodeSupportedFormats.EAN_8,
+                    Html5QrcodeSupportedFormats.CODE_128,
+                    Html5QrcodeSupportedFormats.CODE_39,
+                    Html5QrcodeSupportedFormats.UPC_A,
+                    Html5QrcodeSupportedFormats.UPC_E,
+                    Html5QrcodeSupportedFormats.QR_CODE
+                ]
+            };
+
+            html5QrCode.start(
+                { facingMode: "environment" }, // Prioriza câmera traseira no celular
+                config,
+                (decodedText) => {
+                    tocarBeep();
+                    fecharLeitorBarras();
+                    processarCodigoLido(decodedText);
+                },
+                (errorMessage) => {
+                    // Ignora erros de frame enquanto procura o código
+                }
+            ).catch(err => {
+                alert("Não foi possível acessar a câmera para leitura. Verifique as permissões do navegador (HTTPS necessário).");
+                fecharLeitorBarras();
+            });
+        }
+
+        function fecharLeitorBarras() {
+            document.getElementById('modal-scanner').classList.add('hidden');
+            if (html5QrCode) {
+                html5QrCode.stop().then(() => {
+                    html5QrCode.clear();
+                    html5QrCode = null;
+                }).catch(err => console.error(err));
+            }
+        }
+
+        function processarCodigoLido(codigo) {
+            if (modoScannerAtual === 'cadastro') {
+                document.getElementById('prod-codigo').value = codigo;
+                // Verifica se o produto já existe para preencher dados automaticamente
+                const existente = produtos.find(p => p.codigo === codigo);
+                if (existente) {
+                    if(confirm(`O código ${codigo} já pertence a "${existente.nome}". Deseja preencher os dados dele para adicionar estoque?`)) {
+                        document.getElementById('prod-nome').value = existente.nome;
+                        document.getElementById('prod-categoria').value = existente.categoria;
+                        document.getElementById('prod-preco').value = existente.preco;
+                    }
+                }
+            } else if (modoScannerAtual === 'pdv') {
+                adicionarPorCodigoBarras(codigo);
+            }
+        }
+
+        // Busca via leitor USB ou digitação no PDV
+        function buscarPorCodigoEnter(event) {
+            if (event.key === 'Enter') {
+                const input = document.getElementById('pdv-codigo-barras');
+                const codigo = input.value.trim();
+                if (codigo) {
+                    adicionarPorCodigoBarras(codigo);
+                    input.value = '';
+                }
+            }
+        }
+
+        function adicionarPorCodigoBarras(codigo) {
+            const produto = produtos.find(p => p.codigo === codigo);
+            if (!produto) {
+                alert(`Nenhum produto encontrado com o código: ${codigo}`);
+                return;
+            }
+            if (produto.qtd <= 0) {
+                alert(`O produto "${produto.nome}" está sem estoque!`);
+                return;
+            }
+
+            const itemExistente = carrinho.find(i => i.id === produto.id);
+            if (itemExistente) {
+                if (produto.qtd < itemExistente.qtd + 1) {
+                    alert('Estoque insuficiente para adicionar mais unidades.');
+                    return;
+                }
+                itemExistente.qtd += 1;
+            } else {
+                carrinho.push({ id: produto.id, nome: produto.nome, preco: produto.preco, qtd: 1 });
+            }
+            atualizarCarrinho();
+        }
+
+        // Som de confirmação estilo caixa de supermercado
+        function tocarBeep() {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                osc.type = "sine";
+                osc.frequency.setValueAtTime(1000, ctx.currentTime);
+                osc.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.12);
+            } catch (e) {}
+        }
+
+        // --- NAVEGAÇÃO DE ABAS ---
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById(tabId).classList.remove('hidden');
+            
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('bg-indigo-600', 'text-white', 'font-medium');
+                btn.classList.add('hover:bg-slate-800', 'text-slate-300');
+                if(btn.dataset.target === tabId) {
+                    btn.classList.add('bg-indigo-600', 'text-white', 'font-medium');
+                    btn.classList.remove('hover:bg-slate-800', 'text-slate-300');
+                }
+            });
+            if(tabId === 'dashboard') updateDashboard();
+        }
+
+        // --- MODAIS ---
+        function openModalProduto() {
+            document.getElementById('prod-codigo').value = '';
+            document.getElementById('prod-nome').value = '';
+            document.getElementById('prod-categoria').value = '';
+            document.getElementById('prod-qtd').value = '';
+            document.getElementById('prod-preco').value = '';
+            fotoProdutoBase64 = '';
+            document.getElementById('img-preview').classList.add('hidden');
+            document.getElementById('camera-container').classList.add('hidden');
+            document.getElementById('modal-produto').classList.remove('hidden');
+        }
+        function closeModalProduto() {
+            pararCamera();
+            document.getElementById('modal-produto').classList.add('hidden');
+        }
+
+        function openModalCliente() {
+            document.getElementById('cli-nome').value = '';
+            document.getElementById('cli-telefone').value = '';
+            document.getElementById('modal-cliente').classList.remove('hidden');
+        }
+        function closeModalCliente() {
+            document.getElementById('modal-cliente').classList.add('hidden');
+        }
+
+        // --- FOTO / WEBCAM ---
+        let videoStream = null;
+        async function iniciarCamera() {
+            const container = document.getElementById('camera-container');
+            const video = document.getElementById('video');
+            container.classList.remove('hidden');
+            try {
+                videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+                video.srcObject = videoStream;
+            } catch (err) {
+                alert('Erro ao acessar a câmera. Verifique as permissões.');
+            }
+        }
+        function pararCamera() {
+            if (videoStream) {
+                videoStream.getTracks().forEach(track => track.stop());
+                videoStream = null;
+            }
+        }
+        function tirarFoto() {
+            const video = document.getElementById('video');
+            const canvas = document.getElementById('canvas');
+            canvas.width = video.videoWidth || 320;
+            canvas.height = video.videoHeight || 240;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            fotoProdutoBase64 = canvas.toDataURL('image/jpeg');
+            
+            const preview = document.getElementById('img-preview');
+            preview.src = fotoProdutoBase64;
+            preview.classList.remove('hidden');
+            pararCamera();
+            document.getElementById('camera-container').classList.add('hidden');
+        }
+        function carregarArquivo(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    fotoProdutoBase64 = e.target.result;
+                    const preview = document.getElementById('img-preview');
+                    preview.src = fotoProdutoBase64;
+                    preview.classList.remove('hidden');
+                }
+                reader.readAsDataURL(file);
+            }
+        }
+
+        // --- GESTÃO DE ESTOQUE ---
+        function salvarProduto() {
+            const codigo = document.getElementById('prod-codigo').value.trim();
+            const nome = document.getElementById('prod-nome').value;
+            const categoria = document.getElementById('prod-categoria').value;
+            const qtd = parseInt(document.getElementById('prod-qtd').value);
+            const preco = parseFloat(document.getElementById('prod-preco').value);
+
+            if(!nome || isNaN(qtd) || isNaN(preco)) {
+                alert('Preencha nome, quantidade e preço corretamente.');
+                return;
+            }
+
+            // Se o código de barras já existir, soma ao estoque em vez de duplicar
+            const produtoExistente = codigo ? produtos.find(p => p.codigo === codigo) : null;
+
+            if (produtoExistente) {
+                produtoExistente.qtd += qtd;
+                produtoExistente.preco = preco;
+                if (fotoProdutoBase64) produtoExistente.foto = fotoProdutoBase64;
+            } else {
+                const produto = {
+                    id: Date.now().toString(),
+                    codigo: codigo || '-',
+                    nome,
+                    categoria: categoria || 'Geral',
+                    qtd,
+                    preco,
+                    foto: fotoProdutoBase64 || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=100&auto=format&fit=crop&q=80'
+                };
+                produtos.push(produto);
+            }
+
+            localStorage.setItem('loja_produtos', JSON.stringify(produtos));
+            closeModalProduto();
+            atualizarTabelaEstoque();
+            atualizarSelectsVendas();
+            alert('Estoque atualizado com sucesso!');
+        }
+
+        function atualizarTabelaEstoque() {
+            const tbody = document.getElementById('tabela-estoque-body');
+            tbody.innerHTML = '';
+            produtos.forEach(p => {
+                tbody.innerHTML += `
+                    <tr class="border-b border-slate-100 hover:bg-slate-50">
+                        <td class="p-4"><img src="${p.foto}" class="w-10 h-10 object-cover rounded-lg"></td>
+                        <td class="p-4 font-mono text-xs text-slate-500">${p.codigo || '-'}</td>
+                        <td class="p-4 font-medium text-slate-900">${p.nome}</td>
+                        <td class="p-4 text-slate-500">${p.categoria}</td>
+                        <td class="p-4 font-semibold text-slate-800">${p.qtd}</td>
+                        <td class="p-4 text-emerald-600 font-semibold">R$ ${p.preco.toFixed(2)}</td>
+                        <td class="p-4 text-right">
+                            <button onclick="removerProduto('${p.id}')" class="text-rose-500 hover:text-rose-700 text-xs font-semibold"><i class="fa-solid fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        function removerProduto(id) {
+            if(confirm('Deseja excluir este produto?')) {
+                produtos = produtos.filter(p => p.id !== id);
+                localStorage.setItem('loja_produtos', JSON.stringify(produtos));
+                atualizarTabelaEstoque();
+                atualizarSelectsVendas();
+            }
+        }
+
+        // --- GESTÃO DE CLIENTES ---
+        function salvarCliente() {
+            const nome = document.getElementById('cli-nome').value;
+            const telefone = document.getElementById('cli-telefone').value;
+
+            if(!nome) {
+                alert('Informe o nome do cliente.');
+                return;
+            }
+
+            const cliente = {
+                id: Date.now().toString(),
+                nome,
+                telefone,
+                debito: 0,
+                historicoCrediario: []
+            };
+
+            clientes.push(cliente);
+            localStorage.setItem('loja_clientes', JSON.stringify(clientes));
+            closeModalCliente();
+            atualizarTabelaClientes();
+            atualizarSelectsVendas();
+            alert('Cliente cadastrado com sucesso!');
+        }
+
+        function atualizarTabelaClientes() {
+            const tbody = document.getElementById('tabela-clientes-body');
+            tbody.innerHTML = '';
+            clientes.forEach(c => {
+                tbody.innerHTML += `
+                    <tr class="border-b border-slate-100 hover:bg-slate-50">
+                        <td class="p-4 font-medium text-slate-900">${c.nome}</td>
+                        <td class="p-4 text-slate-500">${c.telefone || '-'}</td>
+                        <td class="p-4 font-semibold text-amber-600">R$ ${c.debito.toFixed(2)}</td>
+                        <td class="p-4 text-right">
+                            <button onclick="quitarDebito('${c.id}')" class="bg-emerald-50 text-emerald-600 px-3 py-1 rounded text-xs font-semibold hover:bg-emerald-100">Registrar Pagamento</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        function quitarDebito(id) {
+            const cliente = clientes.find(c => c.id === id);
+            if(!cliente || cliente.debito <= 0) {
+                alert('Este cliente não possui débitos.');
+                return;
+            }
+            const valorPago = prompt(`Cliente: ${cliente.nome}\nDébito atual: R$ ${cliente.debito.toFixed(2)}\nInforme o valor do pagamento em R$:`);
+            if(valorPago && !isNaN(valorPago)) {
+                const val = parseFloat(valorPago);
+                if(val > cliente.debito) {
+                    alert('O valor excede o débito atual.');
+                    return;
+                }
+                cliente.debito -= val;
+                localStorage.setItem('loja_clientes', JSON.stringify(clientes));
+                atualizarTabelaClientes();
+                alert('Pagamento registrado com sucesso!');
+            }
+        }
+
+        // --- VENDAS & CREDIÁRIO ---
+        function atualizarSelectsVendas() {
+            const prodSelect = document.getElementById('venda-produto');
+            prodSelect.innerHTML = '<option value="">Ou selecione manualmente na lista...</option>';
+            produtos.forEach(p => {
+                if(p.qtd > 0) {
+                    prodSelect.innerHTML += `<option value="${p.id}">${p.nome} (Estoque: ${p.qtd}) - R$ ${p.preco.toFixed(2)}</option>`;
+                }
+            });
+
+            const cliSelect = document.getElementById('venda-cliente');
+            cliSelect.innerHTML = '';
+            clientes.forEach(c => {
+                cliSelect.innerHTML += `<option value="${c.id}">${c.nome}</option>`;
+            });
+        }
+
+        function mudarFormaPagamento() {
+            const forma = document.getElementById('forma-pagamento').value;
+            const blocoCliente = document.getElementById('bloco-cliente');
+            if(forma === 'crediario') {
+                blocoCliente.classList.remove('hidden');
+            } else {
+                blocoCliente.classList.add('hidden');
+            }
+        }
+
+        function adicionarItemCarrinho() {
+            const prodId = document.getElementById('venda-produto').value;
+            const qtd = parseInt(document.getElementById('venda-qtd').value);
+
+            if(!prodId || isNaN(qtd) || qtd <= 0) return;
+
+            const produto = produtos.find(p => p.id === prodId);
+            if(produto.qtd < qtd) {
+                alert('Quantidade indisponível em estoque.');
+                return;
+            }
+
+            const itemExistente = carrinho.find(i => i.id === prodId);
+            if(itemExistente) {
+                if(produto.qtd < itemExistente.qtd + qtd) {
+                    alert('Estoque insuficiente para adicionar mais.');
+                    return;
+                }
+                itemExistente.qtd += qtd;
+            } else {
+                carrinho.push({ id: produto.id, nome: produto.nome, preco: produto.preco, qtd });
+            }
+
+            atualizarCarrinho();
+        }
+
+        function removerItemCarrinho(index) {
+            carrinho.splice(index, 1);
+            atualizarCarrinho();
+        }
+
+        function atualizarCarrinho() {
+            const tbody = document.getElementById('carrinho-body');
+            tbody.innerHTML = '';
+            let total = 0;
+
+            carrinho.forEach((item, index) => {
+                const subtotal = item.preco * item.qtd;
+                total += subtotal;
+                tbody.innerHTML += `
+                    <tr class="border-b border-slate-100">
+                        <td class="py-2 font-medium">${item.nome}</td>
+                        <td class="py-2">${item.qtd}</td>
+                        <td class="py-2">R$ ${subtotal.toFixed(2)}</td>
+                        <td class="py-2 text-right">
+                            <button onclick="removerItemCarrinho(${index})" class="text-rose-500 hover:text-rose-700"><i class="fa-solid fa-xmark"></i></button>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            document.getElementById('carrinho-total').innerText = `R$ ${total.toFixed(2)}`;
+        }
+
+        function finalizarVenda() {
+            if(carrinho.length === 0) {
+                alert('O carrinho está vazio.');
+                return;
+            }
+
+            const formaPagamento = document.getElementById('forma-pagamento').value;
+            let totalVenda = carrinho.reduce((acc, item) => acc + (item.preco * item.qtd), 0);
+            let clienteId = null;
+
+            if(formaPagamento === 'crediario') {
+                clienteId = document.getElementById('venda-cliente').value;
+                if(!clienteId) {
+                    alert('Selecione um cliente para o crediário.');
+                    return;
+                }
+                const cliente = clientes.find(c => c.id === clienteId);
+                if(cliente) {
+                    cliente.debito += totalVenda;
+                    cliente.historicoCrediario.push({
+                        data: new Date().toLocaleDateString(),
+                        valor: totalVenda,
+                        itens: [...carrinho]
+                    });
+                }
+            }
+
+            // Dar baixa no estoque
+            carrinho.forEach(itemCarrinho => {
+                const p = produtos.find(prod => prod.id === itemCarrinho.id);
+                if(p) {
+                    p.qtd -= itemCarrinho.qtd;
+                }
+            });
+
+            // Salvar venda no histórico
+            const novaVenda = {
+                id: Date.now().toString(),
+                data: new Date().toISOString(),
+                itens: [...carrinho],
+                total: totalVenda,
+                formaPagamento,
+                clienteId
+            };
+            vendas.push(novaVenda);
+
+            // Persistir alterações
+            localStorage.setItem('loja_produtos', JSON.stringify(produtos));
+            localStorage.setItem('loja_clientes', JSON.stringify(clientes));
+            localStorage.setItem('loja_vendas', JSON.stringify(vendas));
+
+            // Resetar carrinho e UI
+            carrinho = [];
+            atualizarCarrinho();
+            atualizarTabelaEstoque();
+            atualizarTabelaClientes();
+            atualizarSelectsVendas();
+            updateDashboard();
+
+            alert('Venda finalizada com sucesso!');
+        }
+
+        // --- DASHBOARD E GRÁFICOS ---
+        function updateDashboard() {
+            let faturamentoTotal = vendas.reduce((acc, v) => acc + v.total, 0);
+            let estoqueQtdTotal = produtos.reduce((acc, p) => acc + p.qtd, 0);
+            let crediarioTotal = clientes.reduce((acc, c) => acc + c.debito, 0);
+
+            document.getElementById('dash-faturamento').innerText = `R$ ${faturamentoTotal.toFixed(2)}`;
+            document.getElementById('dash-estoque-qtd').innerText = estoqueQtdTotal;
+            document.getElementById('dash-crediario').innerText = `R$ ${crediarioTotal.toFixed(2)}`;
+            document.getElementById('dash-vendas-qtd').innerText = vendas.length;
+
+            // Gráfico de Vendas
+            const ctxVendas = document.getElementById('chartVendas').getContext('2d');
+            if(chartVendasInstance) chartVendasInstance.destroy();
+
+            const ultimasVendas = vendas.slice(-5);
+            chartVendasInstance = new Chart(ctxVendas, {
+                type: 'line',
+                data: {
+                    labels: ultimasVendas.map((_, i) => `Venda #${i + 1}`),
+                    datasets: [{
+                        label: 'Valor da Venda (R$)',
+                        data: ultimasVendas.map(v => v.total),
+                        borderColor: '#6366f1',
+                        backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                        tension: 0.3,
+                        fill: true
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+
+            // Gráfico de Produtos Mais Vendidos
+            const ctxProdutos = document.getElementById('chartProdutos').getContext('2d');
+            if(chartProdutosInstance) chartProdutosInstance.destroy();
+
+            let contagemProdutos = {};
+            vendas.forEach(v => {
+                v.itens.forEach(item => {
+                    contagemProdutos[item.nome] = (contagemProdutos[item.nome] || 0) + item.qtd;
+                });
+            });
+
+            let nomesProdutos = Object.keys(contagemProdutos);
+            let qtdsProdutos = Object.values(contagemProdutos);
+
+            chartProdutosInstance = new Chart(ctxProdutos, {
+                type: 'bar',
+                data: {
+                    labels: nomesProdutos.length > 0 ? nomesProdutos : ['Nenhum produto'],
+                    datasets: [{
+                        label: 'Qtd Vendida',
+                        data: qtdsProdutos.length > 0 ? qtdsProdutos : [0],
+                        backgroundColor: '#4f46e5'
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+    </script>
+</body>
+</html>
